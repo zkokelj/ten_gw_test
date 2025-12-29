@@ -236,3 +236,59 @@ class GatewayClient:
             return tx_hash
         
         raise ValueError(f"Failed to send transaction: {result}")
+
+    def create_session_key(self) -> str:
+        """Create a session key via eth_getStorageAt (CQ method 0x...0003).
+        
+        This method calls eth_getStorageAt with the special address 0x0000000000000000000000000000000000000003
+        to create a new session key. The returned bytes represent the session key address.
+        
+        Returns:
+            str: The session key address (checksummed)
+            
+        Raises:
+            ValueError: If the RPC call failed or returned an error
+        """
+        logging.info('Creating session key')
+        
+        # The special address for creating session keys
+        create_session_key_addr = "0x0000000000000000000000000000000000000003"
+        # Zero hash for the storage position
+        position = "0x0000000000000000000000000000000000000000000000000000000000000000"
+        
+        result = self._rpc_call(
+            "eth_getStorageAt",
+            [create_session_key_addr, position, "latest"]
+        )
+        
+        if "result" in result:
+            # The result is a hex string representing bytes
+            sk_bytes_hex = result["result"]
+            
+            # Remove '0x' prefix if present
+            if sk_bytes_hex.startswith('0x'):
+                sk_bytes_hex = sk_bytes_hex[2:]
+            
+            # Handle different return formats:
+            # - If exactly 40 chars (20 bytes), use as-is (address returned directly)
+            # - If 64 chars (32 bytes), take the first 40 chars (left-aligned, matching Go's BytesToAddress)
+            # - Otherwise, pad/truncate to 40 chars
+            if len(sk_bytes_hex) == 40:
+                # Address returned directly as 20 bytes
+                address_hex = sk_bytes_hex
+            elif len(sk_bytes_hex) >= 64:
+                # 32-byte storage slot, take first 20 bytes (matching Go's BytesToAddress behavior)
+                address_hex = sk_bytes_hex[:40]
+            else:
+                # Pad to 40 characters if shorter, or truncate if longer
+                address_hex = sk_bytes_hex.zfill(40)[:40]
+            
+            # Convert to address format
+            sk_address = "0x" + address_hex
+            # Convert to checksummed address
+            sk_address = self.w3.to_checksum_address(sk_address)
+            
+            logging.info(f'Session key created: {sk_address}')
+            return sk_address
+        
+        raise ValueError(f"Failed to create session key: {result}")
