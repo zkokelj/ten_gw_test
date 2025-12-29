@@ -100,6 +100,23 @@ This scenario will:
 
 **Note:** You'll need to send funds to the displayed main account address. The scenario will wait up to 5 minutes for funds to arrive. This is a stress test that creates many session keys and tests fund expiration behavior.
 
+### Join Rate Limiting
+
+Test that the `/join` endpoint is properly rate limited:
+
+```bash
+uv run python -m scenarios.join_rate_limit_scenario
+```
+
+This scenario sends parallel requests to the `/join` endpoint and reports how many succeeded (200) vs were rate limited (429).
+
+**Configuration:** You can modify the following constants at the top of the scenario file:
+
+- `NUM_REQUESTS` - Total number of requests to send (default: 50)
+- `MAX_WORKERS` - Number of parallel workers (default: 10)
+
+**Note:** This is a simple stress test that spams the endpoint in parallel to verify rate limiting behavior.
+
 ## Available Environments
 
 The scenarios use the `Environment` class from `gateway.config` which includes:
@@ -123,6 +140,7 @@ gw_testing/
 │   ├── basic_session_key_scenario.py
 │   ├── session_key_transaction_scenario.py
 │   ├── session_key_return_funds_on_delete_scenario.py
-│   └── fund_expiration_stress_scenario.py
+│   ├── fund_expiration_stress_scenario.py
+│   └── join_rate_limit_scenario.py
 └── pyproject.toml     # Project dependencies
 ```
