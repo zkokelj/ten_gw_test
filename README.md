@@ -53,6 +53,25 @@ This scenario will:
 
 **Note:** You'll need to send funds to the displayed address during step 2. The scenario will wait up to 5 minutes for funds to arrive.
 
+### Session Key Return Funds on Delete
+
+Test that funds are automatically returned when a session key is deleted:
+
+```bash
+uv run python -m scenarios.session_key_return_funds_on_delete_scenario
+```
+
+This scenario will:
+
+1. Create an account and authenticate
+2. Wait for you to send funds to the account (5 minute timeout)
+3. Transfer majority of funds to a session key account
+4. Verify funds are on the session key account
+5. Delete the session key (funds should be automatically returned)
+6. Verify that funds are automatically returned to the original account
+
+**Note:** You'll need to send funds to the displayed address during step 2. The scenario will wait up to 5 minutes for funds to arrive. Unlike the session key transaction scenario, this one tests automatic fund return when deleting a session key, rather than manually sending funds back.
+
 ## Available Environments
 
 The scenarios use the `Environment` class from `gateway.config` which includes:
@@ -74,6 +93,7 @@ gw_testing/
 ├── scenarios/        # Test scenarios
 │   ├── basic_auth.py
 │   ├── basic_session_key_scenario.py
-│   └── session_key_transaction_scenario.py
+│   ├── session_key_transaction_scenario.py
+│   └── session_key_return_funds_on_delete_scenario.py
 └── pyproject.toml     # Project dependencies
 ```
