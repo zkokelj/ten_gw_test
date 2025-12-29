@@ -292,3 +292,64 @@ class GatewayClient:
             return sk_address
         
         raise ValueError(f"Failed to create session key: {result}")
+
+    def delete_session_key(self, session_key_address: str) -> bool:
+        """Delete a session key via eth_getStorageAt (CQ method 0x...0004).
+        
+        This method calls eth_getStorageAt with the special address 0x0000000000000000000000000000000000000004
+        to delete a session key. The session key address is passed as a JSON parameter.
+        
+        Args:
+            session_key_address: The session key address to delete (checksummed or not)
+            
+        Returns:
+            bool: True if deletion was successful (result == 0x01), False otherwise
+            
+        Raises:
+            ValueError: If the RPC call failed or returned an error
+        """
+        logging.info(f'Deleting session key: {session_key_address}')
+        
+        # Ensure the address is checksummed
+        session_key_address = self.w3.to_checksum_address(session_key_address)
+        
+        # The special address for deleting session keys
+        delete_session_key_addr = "0x0000000000000000000000000000000000000004"
+        
+        # Create the JSON parameter object
+        params_obj = {
+            "sessionKeyAddress": session_key_address
+        }
+        params_json = json.dumps(params_obj)
+        
+        result = self._rpc_call(
+            "eth_getStorageAt",
+            [delete_session_key_addr, params_json, "latest"]
+        )
+        
+        if "result" in result:
+            # The result should be a hex string representing bytes
+            result_hex = result["result"]
+            
+            # Remove '0x' prefix if present
+            if result_hex.startswith('0x'):
+                result_hex = result_hex[2:]
+            
+            # Remove leading zeros to get the actual byte value
+            result_hex = result_hex.lstrip('0')
+            
+            # If empty after stripping zeros, it's 0x00
+            if not result_hex:
+                result_hex = '0'
+            
+            # Convert to integer to check the value
+            result_value = int(result_hex, 16) if result_hex else 0
+            
+            if result_value == 1:
+                logging.info(f'Session key deleted successfully: {session_key_address}')
+                return True
+            else:
+                logging.warning(f'Session key deletion returned unexpected value: {result_value} (expected 1)')
+                return False
+        
+        raise ValueError(f"Failed to delete session key: {result}")

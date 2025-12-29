@@ -36,6 +36,15 @@ def main():
     except Exception as e:
         logging.warning(f'Could not get session key balance: {e}')
     
+    # Delete the session key
+    logging.info('Deleting session key...')
+    deleted = client.delete_session_key(session_key_address)
+    
+    if deleted:
+        logging.info('Session key deleted successfully')
+    else:
+        logging.warning('Session key deletion may have failed')
+    
     logging.info('Basic session key scenario completed')
 
 if __name__ == "__main__":
