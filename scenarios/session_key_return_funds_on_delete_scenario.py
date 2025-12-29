@@ -1,4 +1,5 @@
 import logging
+import sys
 import time
 from gateway import GatewayClient, Environment
 
@@ -131,8 +132,12 @@ def main():
     if session_key_balance >= transfer_amount * 99 // 100:  # Allow 1% tolerance for gas variations
         logging.info('✓ Funds successfully transferred to session key')
     else:
-        logging.error(f'✗ Transfer verification failed. Expected ~{transfer_amount} wei, got {session_key_balance} wei')
-        return
+        logging.error('=' * 60)
+        logging.error('✗ ERROR: Transfer verification failed!')
+        logging.error(f'✗ Expected ~{transfer_amount} wei, got {session_key_balance} wei')
+        logging.error('=' * 60)
+        logging.error('✗ Session key return funds on delete scenario FAILED!')
+        sys.exit(1)
     
     # Step 5: Delete session key (funds should be automatically returned)
     logging.info('=' * 60)
@@ -170,6 +175,9 @@ def main():
     # Calculate balance changes
     balance_increase = final_balance - balance_before_deletion
     
+    # Track test success/failure
+    test_passed = True
+    
     # Check if funds were returned
     # We expect the balance to increase by approximately the session key balance
     # (minus any gas costs for the automatic return transaction)
@@ -180,10 +188,15 @@ def main():
         if session_key_final_balance <= session_key_balance // 100:  # Allow 1% tolerance
             logging.info('✓ Session key balance cleared (funds returned)')
         else:
-            logging.warning(f'Session key still has balance: {session_key_final_balance} wei (expected near zero)')
+            logging.warning(f'⚠ Session key still has balance: {session_key_final_balance} wei (expected near zero)')
+            test_passed = False
     else:
-        logging.error(f'✗ Funds were not automatically returned. Balance changed by {balance_increase} wei')
-        logging.error(f'Expected balance increase, but got decrease or no change')
+        logging.error('=' * 60)
+        logging.error('✗ ERROR: Funds were NOT automatically returned!')
+        logging.error(f'✗ Balance changed by {balance_increase} wei (expected positive increase)')
+        logging.error(f'✗ Expected balance increase, but got decrease or no change')
+        logging.error('=' * 60)
+        test_passed = False
     
     # Verify overall balance accounting
     # Initial balance - gas for transfer + returned funds - gas for return
@@ -193,10 +206,22 @@ def main():
     if balance_increase >= expected_minimum_return:
         logging.info(f'✓ Balance increase ({balance_increase} wei) meets expected minimum ({expected_minimum_return} wei)')
     else:
-        logging.warning(f'Balance increase ({balance_increase} wei) is less than expected minimum ({expected_minimum_return} wei)')
+        logging.error('=' * 60)
+        logging.error('✗ ERROR: Balance increase is insufficient!')
+        logging.error(f'✗ Balance increase: {balance_increase} wei')
+        logging.error(f'✗ Expected minimum: {expected_minimum_return} wei')
+        logging.error(f'✗ Session key had: {session_key_balance} wei')
+        logging.error('=' * 60)
+        test_passed = False
     
     logging.info('=' * 60)
-    logging.info('Session key return funds on delete scenario completed successfully!')
+    if test_passed:
+        logging.info('✓ Session key return funds on delete scenario completed successfully!')
+    else:
+        logging.error('✗ Session key return funds on delete scenario FAILED!')
+        logging.error('✗ Funds were not automatically returned as expected.')
+        logging.error('=' * 60)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
