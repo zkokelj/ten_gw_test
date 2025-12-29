@@ -353,3 +353,124 @@ class GatewayClient:
                 return False
         
         raise ValueError(f"Failed to delete session key: {result}")
+
+    def get_gas_price(self) -> int:
+        """Get the current gas price in wei.
+        
+        Returns:
+            int: The gas price in wei
+            
+        Raises:
+            ValueError: If the RPC call failed or returned an error
+        """
+        logging.info('Getting gas price')
+        
+        result = self._rpc_call("eth_gasPrice", [])
+        
+        if "result" in result:
+            gas_price_hex = result["result"]
+            gas_price_wei = int(gas_price_hex, 16)
+            logging.info(f'Gas price: {gas_price_wei} wei')
+            return gas_price_wei
+        
+        raise ValueError(f"Failed to get gas price: {result}")
+
+    def estimate_gas(self, from_address: str, to_address: str, value_wei: int = 0, data: str = None) -> int:
+        """Estimate the gas required for a transaction.
+        
+        Args:
+            from_address: The sender address
+            to_address: The recipient address (or contract address)
+            value_wei: The value to send in wei (default: 0)
+            data: Optional transaction data (hex string with 0x prefix)
+            
+        Returns:
+            int: The estimated gas limit
+            
+        Raises:
+            ValueError: If the RPC call failed or returned an error
+        """
+        logging.info(f'Estimating gas for transaction from {from_address} to {to_address}')
+        
+        call_obj = {
+            "from": self.w3.to_checksum_address(from_address),
+            "to": self.w3.to_checksum_address(to_address),
+            "value": hex(value_wei)
+        }
+        
+        if data:
+            call_obj["data"] = data
+        
+        result = self._rpc_call("eth_estimateGas", [call_obj])
+        
+        if "result" in result:
+            gas_hex = result["result"]
+            gas_limit = int(gas_hex, 16)
+            logging.info(f'Estimated gas: {gas_limit}')
+            return gas_limit
+        
+        raise ValueError(f"Failed to estimate gas: {result}")
+
+    def send_transaction_from_session_key(
+        self,
+        session_key_address: str,
+        to_address: str,
+        value_wei: int,
+        gas: int = None,
+        gas_price: int = None
+    ) -> str:
+        """Send a transaction from a session key.
+        
+        This method uses eth_sendTransaction (not eth_sendRawTransaction) because
+        the gateway manages session key signing. The session key address is specified
+        in the 'from' field.
+        
+        Args:
+            session_key_address: The session key address to send from
+            to_address: The recipient address
+            value_wei: The amount to send in wei
+            gas: Gas limit (if None, will be estimated)
+            gas_price: Gas price in wei (if None, will be fetched)
+            
+        Returns:
+            str: The transaction hash
+            
+        Raises:
+            ValueError: If the RPC call failed or returned an error
+        """
+        logging.info(f'Sending transaction from session key {session_key_address} to {to_address}')
+        
+        # Ensure addresses are checksummed
+        session_key_address = self.w3.to_checksum_address(session_key_address)
+        to_address = self.w3.to_checksum_address(to_address)
+        
+        # Get nonce for the session key
+        nonce = self.get_transaction_count(session_key_address)
+        
+        # Get gas price if not provided
+        if gas_price is None:
+            gas_price = self.get_gas_price()
+        
+        # Estimate gas if not provided
+        if gas is None:
+            gas = self.estimate_gas(session_key_address, to_address, value_wei)
+        
+        # Build the transaction object
+        transaction = {
+            "from": session_key_address,
+            "to": to_address,
+            "value": hex(value_wei),
+            "gas": hex(gas),
+            "gasPrice": hex(gas_price),
+            "nonce": hex(nonce)
+        }
+        
+        # Send transaction using eth_sendTransaction (gateway handles signing for session keys)
+        result = self._rpc_call("eth_sendTransaction", [transaction])
+        
+        if "result" in result:
+            tx_hash = result["result"]
+            logging.info(f'Transaction sent from session key: {tx_hash}')
+            return tx_hash
+        
+        raise ValueError(f"Failed to send transaction from session key: {result}")
