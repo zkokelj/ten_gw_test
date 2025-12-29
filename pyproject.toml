@@ -1,0 +1,10 @@
+[project]
+name = "gw-testing"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "requests>=2.32.5",
+    "web3>=7.14.0",
+]
