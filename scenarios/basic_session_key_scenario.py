@@ -9,7 +9,7 @@ logging.basicConfig(
 
 def main():
     # Pick your environment
-    env = Environment.SEPOLIA
+    env = Environment.UAT
     
     logging.info(f'Starting basic session key test against {env.url}')
     
